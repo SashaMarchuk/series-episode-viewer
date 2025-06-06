@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Coupon {
+  id                    String       @id
+  code                  String       @unique
+  discountValue         Int
+  discountType          DiscountType
+  salonId               String
+  stripeCouponId        String
+  createdAt             DateTime     @default(now())
+  maxRedemptions        Int?
+  stripePromotionCodeId String?
+  type                  CouponType   @default(AUTO_APPROVE)
+  usageCount            Int          @default(0)
+  Salon                 Salon        @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model LegacyHost {
+  id              String @id
+  fullname        String
+  bio             String
+  profileImageUrl String
+  slug            String
+}
+
+model MemberTicket {
+  id        String   @id
+  salonId   String
+  userId    String
+  createdAt DateTime @default(now())
+  Salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NewsletterCoupon {
+  id           String       @id
+  email        String       @unique
+  code         String       @unique
+  discount     Int
+  discountType DiscountType
+  createdAt    DateTime     @default(now())
+  used         Boolean      @default(false)
+  expiresAt    DateTime?
+}
+
+model Page {
+  id    String @id @unique
+  name  String
+  value Json
+}
+
+model PublicTicket {
+  id                String          @id
+  email             String
+  name              String
+  salonId           String
+  customerEmail     String
+  stripePaymentId   String
+  createdAt         DateTime        @default(now())
+  status            TicketStatus    @default(PENDING)
+  checkoutSessionId String?
+  finalPrice        Decimal?        @db.Decimal(10, 2)
+  seriesId          String?
+  createdByRole     CreatedByRole?
+  transactionId     String?
+  Salon             Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  Series            Series?         @relation(fields: [seriesId], references: [id])
+  Transaction       Transaction?    @relation(fields: [transactionId], references: [id])
+  TicketMetadata    TicketMetadata?
+}
+
+model Salon {
+  id                      String            @id
+  created_at              DateTime          @default(now())
+  updated_at              DateTime          @default(now())
+  title                   String            @unique
+  description             String
+  startTime               DateTime
+  endTime                 DateTime
+  memberSpaces            Int
+  publicSpaces            Int
+  publicPrice             Int
+  zoomId                  String?
+  slug                    String?           @unique
+  state                   SALON_STATE       @default(DRAFT)
+  additionalInfo          String?
+  category                CATEGORY
+  hostId                  String
+  imageUrl                String?
+  legacyHost              String?           @default("")
+  location                String?
+  locationType            LOCATION_TYPE
+  locationUrl             String?
+  recordEvent             Boolean           @default(false)
+  seriesId                String?
+  type                    SALON_TYPE        @default(SALON)
+  zoomJoinUrl             String?
+  zoomStartUrl            String?
+  eventType               EVENT_TYPE?
+  stripeProductId         String?
+  timezone                String?
+  stripePriceId           String?
+  addressType             ADDRESS_TYPE?     @default(PUBLIC)
+  approximateLocation     String?
+  approximateLocationUrl  String?
+  isMembersOnly           Boolean           @default(false)
+  previewImgUrl           String?
+  usesWaitlist            Boolean           @default(false)
+  Coupon                  Coupon[]
+  MemberTicket            MemberTicket[]
+  PublicTicket            PublicTicket[]
+  User_Salon_hostIdToUser User              @relation("Salon_hostIdToUser", fields: [hostId], references: [id], onDelete: Cascade)
+  Series                  Series?           @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  SalonHistory            SalonHistory[]
+  SpecialGuest            SpecialGuest[]
+  Tip                     Tip[]
+  WaitlistRequest         WaitlistRequest[]
+  User_CoHostSalons       User[]            @relation("CoHostSalons")
+  Tag                     Tag[]             @relation("SalonTags")
+}
+
+model SalonHistory {
+  id        String   @id
+  salonId   String
+  changes   Json
+  changedAt DateTime @default(now())
+  Salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model Series {
+  id                       String          @id
+  hostId                   String
+  title                    String          @unique
+  description              String
+  imageUrl                 String?
+  slug                     String?         @unique
+  state                    SERIES_STATE    @default(DRAFT)
+  additionalInfo           String?
+  eventType                EVENT_TYPE?
+  locationType             LOCATION_TYPE?
+  memberSpaces             Int?
+  publicPrice              Int?
+  publicSpaces             Int?
+  recordEvent              Boolean?        @default(false)
+  previewImgUrl            String?
+  created_at               DateTime        @default(now())
+  PublicTicket             PublicTicket[]
+  Salon                    Salon[]
+  User_Series_hostIdToUser User            @relation("Series_hostIdToUser", fields: [hostId], references: [id], onDelete: Cascade)
+  SeriesHistory            SeriesHistory[]
+  User_CoHostSeries        User[]          @relation("CoHostSeries")
+  Tag                      Tag[]           @relation("SeriesTags")
+}
+
+model SeriesHistory {
+  id        String       @id
+  seriesId  String
+  state     SERIES_STATE
+  data      Json
+  createdAt DateTime     @default(now())
+  Series    Series       @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SpecialGuest {
+  id      String @id
+  name    String
+  email   String
+  salonId String
+  Salon   Salon  @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id       String   @id
+  label    String   @unique
+  isActive Boolean  @default(true)
+  Salon    Salon[]  @relation("SalonTags")
+  Series   Series[] @relation("SeriesTags")
+}
+
+model TicketMetadata {
+  id           String         @id
+  ticketId     String         @unique
+  sources      TicketSource[]
+  couponCode   String?
+  couponType   DiscountType?
+  finalPrice   Int
+  createdAt    DateTime       @default(now())
+  seriesId     String?
+  PublicTicket PublicTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Tip {
+  id                String   @id
+  amount            Decimal
+  createdAt         DateTime @default(now())
+  hostId            String
+  senderEmail       String
+  stripePaymentId   String
+  checkoutSessionId String?
+  note              String?
+  salonId           String?
+  senderName        String?
+  User              User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  Salon             Salon?   @relation(fields: [salonId], references: [id])
+}
+
+model Transaction {
+  id                String            @id
+  stripePaymentId   String            @unique
+  checkoutSessionId String?
+  totalAmount       Int
+  ticketsTotal      Int
+  tipsTotal         Int
+  applicationFee    Int
+  stripeFee         Int
+  netEarnings       Int
+  currency          String
+  source            TransactionSource @default(INDIVIDUAL)
+  createdAt         DateTime          @default(now())
+  customerEmail     String?
+  customerName      String?
+  PublicTicket      PublicTicket[]
+}
+
+model User {
+  id                         String             @id
+  name                       String?
+  email                      String             @unique
+  emailVerified              DateTime?
+  created_at                 DateTime           @default(now())
+  updated_at                 DateTime
+  image                      String?
+  memberfulId                String?            @unique
+  bio                        String?
+  fullname                   String?
+  instaLink                  String?
+  lastMemberTicket           DateTime?
+  profileImageUrl            String?
+  quote                      String?
+  slug                       String?            @unique
+  substackLink               String?
+  webLink                    String?
+  xLink                      String?
+  stripeConnectedAccountId   String?
+  notifyOnCreate             Boolean            @default(false)
+  notifyOnDelete             Boolean            @default(false)
+  notifyOnUpdate             Boolean            @default(false)
+  role                       USER_ROLE          @default(USER)
+  phoneNumber                String?            @unique
+  phoneVerified              DateTime?
+  timezone                   String?
+  newsletterStatus           NEWSLETTER_STATUS?
+  hasFreeEventAccess         Boolean            @default(false)
+  Account                    Account[]
+  MemberTicket               MemberTicket[]
+  Salon_Salon_hostIdToUser   Salon[]            @relation("Salon_hostIdToUser")
+  Series_Series_hostIdToUser Series[]           @relation("Series_hostIdToUser")
+  Session                    Session[]
+  Tip                        Tip[]
+  Salon_CoHostSalons         Salon[]            @relation("CoHostSalons")
+  Series_CoHostSeries        Series[]           @relation("CoHostSeries")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model WaitlistRequest {
+  id        String   @id
+  salonId   String
+  email     String
+  name      String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  Salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, email])
+}
+
+enum ADDRESS_TYPE {
+  PUBLIC
+  PRIVATE
+}
+
+enum CATEGORY {
+  SCIENCE
+  TECH
+  LEGACY
+}
+
+enum CouponType {
+  ADMIN_CREATED
+  AUTO_APPROVE
+}
+
+enum CreatedByRole {
+  USER
+  ADMIN
+}
+
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+enum EVENT_TYPE {
+  WORKSHOP
+  TALK
+  READING_GROUP
+}
+
+enum LOCATION_TYPE {
+  IRL
+  VIRTUAL
+}
+
+enum NEWSLETTER_STATUS {
+  NOT_FOUND
+  NON_SUBSCRIBED
+  UNSUBSCRIBED
+  SUBSCRIBED
+}
+
+enum PAYMENT_STATUS {
+  CREATED
+  PENDING
+  FAILED
+  PAID
+}
+
+enum SALON_STATE {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PENDING_APPROVAL
+}
+
+enum SALON_TYPE {
+  SALON
+  SUPER_SALON
+  SERIES_EPISODE
+}
+
+enum SERIES_STATE {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+enum TicketSource {
+  INDIVIDUAL
+  SERIES
+  ADMIN
+  FREE
+  COUPON
+}
+
+enum TicketStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  EXPIRED
+}
+
+enum TransactionSource {
+  INDIVIDUAL
+  SERIES_CHECKOUT
+  ADMIN
+}
+
+enum USER_ROLE {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
